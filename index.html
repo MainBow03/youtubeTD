@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Total Drama Simulator</title>
+    <!-- Carica Tailwind CSS per la grafica -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Carica React e ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Carica Babel per tradurre il codice React -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translate3d(0, -20px, 0); }
+            to { opacity: 1; transform: translate3d(0, 0, 0); }
+        }
+        .animate-fade-in-down { animation: fadeInDown 0.5s ease-out; }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-100">
+    <div id="root"></div>
+
+    <!-- Qui inizia il gioco vero e proprio -->
+    <script type="text/babel" data-presets="react">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- DEFINIZIONE ICONE (Sostituisce lucide-react per funzionare senza installazione) ---
+        const Icon = ({ d, ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>{d}</svg>
+        );
+        const Trophy = (p) => <Icon d={<><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5 2.5 2.5 0 0 0 0 5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></>} {...p} />;
+        const Skull = (p) => <Icon d={<><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><path d="M8 20v2h8v-2"/><path d="m12.5 17-.5-1-.5 1h1z"/><path d="M16 20a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20"/></>} {...p} />;
+        const Users = (p) => <Icon d={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>} {...p} />;
+        const Play = (p) => <Icon d={<polygon points="5 3 19 12 5 21 5 3"/>} {...p} />;
+        const Settings = (p) => <Icon d={<><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></>} {...p} />;
+        const Crown = (p) => <Icon d={<path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/>} {...p} />;
+        const Shield = (p) => <Icon d={<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>} {...p} />;
+        const Sword = (p) => <Icon d={<><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/></>} {...p} />;
+        const RefreshCw = (p) => <Icon d={<><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></>} {...p} />;
+        const AlertCircle = (p) => <Icon d={<><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></>} {...p} />;
+        const CheckCircle = (p) => <Icon d={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>} {...p} />;
+        const Flame = (p) => <Icon d={<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>} {...p} />;
+        const Undo2 = (p) => <Icon d={<><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></>} {...p} />;
+        const Star = (p) => <Icon d={<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>} {...p} />;
+
+        // --- DATI DI GIOCO ---
+        const TEAM_DEFAULTS = [
+            { name: 'Red Sharks', bg: 'bg-red-50', border: 'border-red-600', headerBg: 'bg-red-600', text: 'text-red-900' },
+            { name: 'Blue Barracudas', bg: 'bg-blue-50', border: 'border-blue-600', headerBg: 'bg-blue-600', text: 'text-blue-900' },
+            { name: 'Green Geckos', bg: 'bg-green-50', border: 'border-green-600', headerBg: 'bg-green-600', text: 'text-green-900' },
+            { name: 'Yellow Yaks', bg: 'bg-yellow-50', border: 'border-yellow-500', headerBg: 'bg-yellow-500', text: 'text-yellow-900' },
+            { name: 'Purple Parrots', bg: 'bg-purple-50', border: 'border-purple-600', headerBg: 'bg-purple-600', text: 'text-purple-900' },
+            { name: 'Orange Owls', bg: 'bg-orange-50', border: 'border-orange-500', headerBg: 'bg-orange-500', text: 'text-orange-900' },
+            { name: 'Pink Panthers', bg: 'bg-pink-50', border: 'border-pink-500', headerBg: 'bg-pink-500', text: 'text-pink-900' },
+            { name: 'Teal Tigers', bg: 'bg-teal-50', border: 'border-teal-600', headerBg: 'bg-teal-600', text: 'text-teal-900' },
+            { name: 'Gray Gargoyles', bg: 'bg-gray-50', border: 'border-gray-600', headerBg: 'bg-gray-600', text: 'text-gray-900' },
+            { name: 'Indigo Iguanas', bg: 'bg-indigo-50', border: 'border-indigo-600', headerBg: 'bg-indigo-600', text: 'text-indigo-900' },
+        ];
+
+        const ROSTER_DATA = [
+            { id: 'td-ezekiel', name: "Ezekiel", imgSrc: "https://media.tenor.com/LR-WWumlB7IAAAAM/grr-ezekiel-tdi.gif", category: "Total Drama" },
+            { id: 'td-eva', name: "Eva", imgSrc: "https://media.tenor.com/rx_HIXpF3p4AAAAM/eva-total-drama.gif", category: "Total Drama" },
+            { id: 'td-noah', name: "Noah", imgSrc: "https://i.pinimg.com/736x/40/c3/92/40c39253ae4cbdedcbee10272bdf1a92.jpg", category: "Total Drama" },
+            { id: 'td-justin', name: "Justin", imgSrc: "https://i.redd.it/9ysz6wkemoza1.gif", category: "Total Drama" },
+            { id: 'td-katie', name: "Katie", imgSrc: "https://i.pinimg.com/1200x/47/74/a5/4774a5607ac3a9872036fcb5889457e9.jpg", category: "Total Drama" },
+            { id: 'td-sadie', name: "Sadie", imgSrc: "https://i.pinimg.com/1200x/7b/ff/ae/7bffae6e18afba9c79a8c04613cb320b.jpg", category: "Total Drama" },
+            { id: 'td-tyler', name: "Tyler", imgSrc: "https://media1.tenor.com/m/c2NyBh0ZLA4AAAAC/total-drama-tyler.gif", category: "Total Drama" },
+            { id: 'td-izzy', name: "Izzy", imgSrc: "https://i.pinimg.com/originals/a8/fa/f3/a8faf3514b6a669a0cfa0d31f24b8e9b.gif", category: "Total Drama" },
+            { id: 'td-harold', name: "Harold", imgSrc: "https://i.pinimg.com/736x/4b/40/81/4b408173ea77048aea4e83701bf73d2b.jpg", category: "Total Drama" },
+            { id: 'td-beth', name: "Beth", imgSrc: "https://media1.tenor.com/m/K7_oJ0WY00AAAAAd/total-drama-total-drama-action.gif", category: "Total Drama" },
+            { id: 'td-cody', name: "Cody", imgSrc: "https://i.pinimg.com/736x/ca/09/fd/ca09fdfc85b3f013470e2faf8706e2ae.jpg", category: "Total Drama" },
+            { id: 'td-courtney', name: "Courtney", imgSrc: "https://media.tenor.com/BmJ9ioZ7sMQAAAAM/slay-queen.gif", category: "Total Drama" },
+            { id: 'td-trent', name: "Trent", imgSrc: "https://media.tenor.com/pwvsTHuPF6wAAAAM/trent-tdi-winnie-winnie.gif", category: "Total Drama" },
+            { id: 'td-bridgette', name: "Bridgette", imgSrc: "https://media1.tenor.com/m/h0h7IgkAU00AAAAC/total-drama-island-bridgette.gif", category: "Total Drama" },
+            { id: 'td-lindsay', name: "Lindsay", imgSrc: "https://media1.tenor.com/m/5EyxoIuOLvgAAAAd/total-drama-total-drama-island.gif", category: "Total Drama" },
+            { id: 'td-dj', name: "DJ", imgSrc: "https://media1.tenor.com/m/C965Qx7Uok0AAAAC/td-dj.gif", category: "Total Drama" },
+            { id: 'td-geoff', name: "Geoff", imgSrc: "https://media1.tenor.com/m/6yinOkiv3zYAAAAC/geoff-total-drama.gif", category: "Total Drama" },
+            { id: 'td-leshawna', name: "Leshawna", imgSrc: "https://media1.tenor.com/m/25LFm1b0jh8AAAAC/leshawna-total.gif", category: "Total Drama" },
+            { id: 'td-duncan', name: "Duncan", imgSrc: "https://64.media.tumblr.com/4cd0a872bfbf30e9a4827c627b0b22df/a5d3ebdf7954c861-4d/s500x750/25a7cbb1779aef30fd2c84b6353cb4c51f8949b2.gif", category: "Total Drama" },
+            { id: 'td-heather', name: "Heather", imgSrc: "https://media.tenor.com/IwBy4Qxyus4AAAAM/heather-heathertotaldrama.gif", category: "Total Drama" },
+            { id: 'td-gwen', name: "Gwen", imgSrc: "https://media.tenor.com/83wH-eEZQA4AAAAM/gwen-total-drama.gif", category: "Total Drama" },
+            { id: 'td-owen', name: "Owen", imgSrc: "https://media.tenor.com/vmNWvQUQM_UAAAAM/owen-td-owen-tdi.gif", category: "Total Drama" },
+            { id: 'td-sierra', name: "Sierra", imgSrc: "https://media1.tenor.com/m/he76krht44MAAAAC/sierra-total-drama.gif", category: "Total Drama" },
+            { id: 'td-alejandro', name: "Alejandro", imgSrc: "https://media1.tenor.com/m/HSNf6bm9vPcAAAAC/alejandro-total-drama.gif", category: "Total Drama" },
+            { id: 'td-blaineley', name: "Blaineley", imgSrc: "https://media1.tenor.com/m/WvU3orqTWmoAAAAC/blaineley-blaineley-total-drama.gif", category: "Total Drama" },
+            { id: 'td-zoey', name: "Zoey", imgSrc: "https://media1.tenor.com/m/fQhcP88nQDUAAAAC/total-drama-zoey.gif", category: "Total Drama" },
+            { id: 'td-mike', name: "Mike", imgSrc: "https://media1.tenor.com/m/UM4gFl1AUl8AAAAC/mike-total-drama-total-drama-mike.gif", category: "Total Drama" },
+            { id: 'td-lightning', name: "Lightning", imgSrc: "https://media1.tenor.com/m/AbJiynCUBK0AAAAC/lightning-total-drama.gif", category: "Total Drama" },
+            { id: 'td-cameron', name: "Cameron", imgSrc: "https://i.pinimg.com/736x/4c/05/b3/4c05b3dfa673d17d542bbf56c797f904.jpg", category: "Total Drama" },
+            { id: 'td-jo', name: "Jo", imgSrc: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRWyf8rhCJjSGiYlvhglC2N15tLDhcmth8Cg&s", category: "Total Drama" },
+            { id: 'td-scott', name: "Scott", imgSrc: "https://media.tenor.com/nz9cbBZ3a_kAAAAM/scott-scott-total-drama.gif", category: "Total Drama" },
+            { id: 'td-dakota', name: "Dakota", imgSrc: "https://media.tenor.com/FMtnDtFqk1EAAAAe/dakota-total-drama.png", category: "Total Drama" },
+            { id: 'td-sam', name: "Sam", imgSrc: "https://media.tenor.com/gsKSwx8OX2wAAAAe/sam-total-drama.png", category: "Total Drama" },
+            { id: 'td-dawn', name: "Dawn", imgSrc: "https://media.tenor.com/HB9db-_l-u8AAAAM/dawn-total-drama.gif", category: "Total Drama" },
+            { id: 'td-brick', name: "Brick", imgSrc: "https://i.makeagif.com/media/4-15-2024/Lyaffj.gif", category: "Total Drama" },
+            { id: 'td-annemaria', name: "Anne Maria", imgSrc: "https://media.tenor.com/O27wcykvUi4AAAAe/anne-maria-annemaria.png", category: "Total Drama" },
+            { id: 'td-b', name: "B", imgSrc: "https://media.tenor.com/pOHVpdDRPCIAAAAe/total-drama-b-total-drama.png", category: "Total Drama" },
+            { id: 'td-staci', name: "Staci", imgSrc: "https://media.tenor.com/f0YSHxFJvgQAAAAe/staci-total-drama.png", category: "Total Drama" },
+            { id: 'td-jasmine', name: "Jasmine", imgSrc: "https://media.tenor.com/Pv_SLOSMqgIAAAAM/jasmine-total-drama-total-drama-jasmine.gif", category: "Total Drama" },
+            { id: 'td-sky', name: "Sky", imgSrc: "https://media1.tenor.com/m/L0Av2wq3vm0AAAAC/sky-total-drama.gif", category: "Total Drama" },
+            { id: 'td-sammy', name: "Sammy", imgSrc: "https://media1.tenor.com/m/OMA3wQfbi_sAAAAC/sammy-total-drama.gif", category: "Total Drama" },
+            { id: 'td-amy', name: "Amy", imgSrc: "https://media1.tenor.com/m/kQAwWpn5w84AAAAd/amy-total-drama-island-confessional-amy-total-drama.gif", category: "Total Drama" },
+            { id: 'td-scarlett', name: "Scarlett", imgSrc: "https://media1.tenor.com/m/lWpA-T3XImkAAAAC/total-drama-island-pakhitew-island.gif", category: "Total Drama" },
+            { id: 'td-ella', name: "Ella", imgSrc: "https://media.tenor.com/eda60bWwkFUAAAAM/total-drama-td.gif", category: "Total Drama" },
+            { id: 'td-dave', name: "Dave", imgSrc: "https://64.media.tumblr.com/041150b86435f5a7aea726b747a4863a/tumblr_n8kuuxZyL71r5inwuo1_500.gif", category: "Total Drama" },
+            { id: 'td-max', name: "Max", imgSrc: "https://i.pinimg.com/1200x/2d/cc/dd/2dccdda30646efa088e74d5f357c442e.jpg", category: "Total Drama" },
+            { id: 'td-beardo', name: "Beardo", imgSrc: "https://i.pinimg.com/736x/d7/32/ce/d732ce7c5c2d7068d9ce5079a9a99598.jpg", category: "Total Drama" },
+            { id: 'td-rodney', name: "Rodney", imgSrc: "https://i.pinimg.com/736x/de/a3/21/dea3216ade82b5d124d2b38b8e3552f0.jpg", category: "Total Drama" },
+            { id: 'td-leonard', name: "Leonard", imgSrc: "https://i.pinimg.com/736x/4c/a2/26/4ca226984085a90126ad5520dbf2df09.jpg", category: "Total Drama" },
+            { id: 'td-shawn', name: "Shawn", imgSrc: "https://i.pinimg.com/736x/eb/51/b4/eb51b4f766e5bdee3becd13f5ff8689c.jpg", category: "Total Drama" },
+            { id: 'td-sugar', name: "Sugar", imgSrc: "https://i.pinimg.com/736x/3b/d1/5f/3bd15f13bd99993228f72f8611b2ac96.jpg", category: "Total Drama" },
+            { id: 'td-topher', name: "Topher", imgSrc: "https://i.pinimg.com/736x/63/96/66/639666f690e207d4edf4c2a77061b91c.jpg", category: "Total Drama" },
+            { id: 'td-brody', name: "Brody", imgSrc: "https://pa1.aminoapps.com/6721/a3271ba0a480adf16426ffef13df151074dc15a4_hq.gif", category: "Total Drama" },
+            { id: 'td-kitty', name: "Kitty", imgSrc: "https://media.tenor.com/sh0uXidfPXMAAAAM/sisters-ridonculous-race-sisters-total-drama.gif", category: "Total Drama" },
+            { id: 'td-priya', name: "Priya", imgSrc: "https://media1.tenor.com/m/cxiiJfssRboAAAAC/priya-tdi.gif", category: "Total Drama" },
+            { id: 'td-julia', name: "Julia", imgSrc: "https://media.tenor.com/9Fi3-1Qpp3sAAAAM/totaldrama-julia.gif", category: "Total Drama" },
+            { id: 'td-bowie', name: "Bowie", imgSrc: "https://media1.tenor.com/m/cEc_aUsPuboAAAAC/total-drama-bowie.gif", category: "Total Drama" },
+            { id: 'td-millie', name: "Millie", imgSrc: "https://media1.tenor.com/m/zbA2zf58VXwAAAAd/millie-total-drama.gif", category: "Total Drama" },
+            { id: 'td-raj', name: "Raj", imgSrc: "https://media.tenor.com/PUIuYovxS5wAAAAM/raj-total-drama-raj-and-wayne.gif", category: "Total Drama" },
+            { id: 'td-wayne', name: "Wayne", imgSrc: "https://media1.tenor.com/m/5_EqXZiImWwAAAAd/wayne-tdi-2023.gif", category: "Total Drama" },
+            { id: 'td-chase', name: "Chase", imgSrc: "https://media.tenor.com/2oEB3YjICY4AAAAM/chase-tdi.gif", category: "Total Drama" },
+            { id: 'td-emma', name: "Emma", imgSrc: "https://i.redd.it/xy0nzrri4lta1.gif", category: "Total Drama" },
+            { id: 'td-zee', name: "Zee", imgSrc: "https://media1.tenor.com/m/lOJCf4ZLeb0AAAAd/zee-zee-total-drama.gif", category: "Total Drama" },
+            { id: 'td-ripper', name: "Ripper", imgSrc: "https://media1.tenor.com/m/mck9gRYeOGkAAAAd/total-drama-island-reboot-total-drama-island.gif", category: "Total Drama" },
+            { id: 'td-caleb', name: "Caleb", imgSrc: "https://media1.tenor.com/m/iRUIgrUMA_AAAAAd/totaldrama-caleb.gif", category: "Total Drama" },
+            { id: 'td-axel', name: "Axel", imgSrc: "https://media1.tenor.com/m/MDcJeSPIgKwAAAAd/axel-axel-total-drama.gif", category: "Total Drama" },
+            { id: 'td-damien', name: "Damien", imgSrc: "https://media1.tenor.com/m/94l8mSFarXcAAAAd/totaldrama-damien.gif", category: "Total Drama" },
+            { id: 'td-scarygirl', name: "Scary Girl", imgSrc: "https://media.tenor.com/pRe7b6uafuAAAAAM/scary-girl-goth-girl.gif", category: "Total Drama" },
+            { id: 'td-mk', name: "MK", imgSrc: "https://media.tenor.com/7vmAi142OHcAAAAM/mkulia-mk.gif", category: "Total Drama" },
+            { id: 'td-nichelle', name: "Nichelle", imgSrc: "https://media1.tenor.com/m/78HApTnzN00AAAAd/nichelle-nichelle-total-drama.gif", category: "Total Drama" },
+            { id: 'dc-will', name: "Will", imgSrc: "https://i.pinimg.com/736x/8d/68/3f/8d683fd064c4be3f3f1f577d863f0add.jpg", category: "Disventure Camp" },
+            { id: 'dc-drew', name: "Drew", imgSrc: "https://i.pinimg.com/1200x/b2/8c/ea/b28cea5d8229fc097c819c2e3e3724e8.jpg", category: "Disventure Camp" },
+            { id: 'dc-nick', name: "Nick", imgSrc: "https://i.pinimg.com/736x/26/f4/8d/26f48d38357107a17168d3c71f80cb72.jpg", category: "Disventure Camp" },
+            { id: 'dc-lill', name: "Lill", imgSrc: "https://i.pinimg.com/1200x/9d/92/63/9d9263a0692f2fe8d33540cdf4a9d727.jpg", category: "Disventure Camp" },
+            { id: 'dc-ashley', name: "Ashley", imgSrc: "https://i.pinimg.com/736x/19/3e/a1/193ea11b57450c54e2a4691c7f7f409d.jpg", category: "Disventure Camp" },
+            { id: 'dc-dan', name: "Dan", imgSrc: "https://i.pinimg.com/1200x/20/58/40/20584079c321dd1376059cfe23eaf13b.jpg", category: "Disventure Camp" },
+            { id: 'dc-gabby', name: "Gabby", imgSrc: "https://i.pinimg.com/736x/49/f7/2c/49f72c88ffea2bfcb0b32255d70b21d5.jpg", category: "Disventure Camp" },
+            { id: 'dc-fiore', name: "Fiore", imgSrc: "https://i.pinimg.com/736x/a9/1b/1d/a91b1d88a7fcf431999295f7f9396ed8.jpg", category: "Disventure Camp" },
+            { id: 'dc-tom', name: "Tom", imgSrc: "https://i.pinimg.com/736x/58/62/44/586244bc2db222836e76274456cb3f3d.jpg", category: "Disventure Camp" },
+            { id: 'dc-jake', name: "Jake", imgSrc: "https://i.pinimg.com/736x/bc/a0/76/bca0765eaa0f1e88b0070a5b92c22de7.jpg", category: "Disventure Camp" },
+            { id: 'dc-ellie', name: "Ellie", imgSrc: "https://i.pinimg.com/736x/a0/bd/98/a0bd98624de6588f93d4e2bb54114e62.jpg", category: "Disventure Camp" },
+            { id: 'dc-grett', name: "Grett", imgSrc: "https://i.pinimg.com/736x/c3/18/fe/c318fe978524c4ff27094c1af9d18f51.jpg", category: "Disventure Camp" },
+            { id: 'dc-miriam', name: "Miriam", imgSrc: "https://i.pinimg.com/736x/0f/a1/92/0fa192102fb25e3b8edeee17b4cc1a0a.jpg", category: "Disventure Camp" },
+            { id: 'dc-alec', name: "Alec", imgSrc: "https://i.pinimg.com/736x/83/14/6c/83146cb5a6ad5cfe4ac926caab4b02d4.jpg", category: "Disventure Camp" },
+            { id: 'dc-oliver', name: "Oliver", imgSrc: "https://i.pinimg.com/736x/22/a0/e9/22a0e9230967736f283baf9631e93b71.jpg", category: "Disventure Camp" },
+            { id: 'dc-karol', name: "Karol", imgSrc: "https://i.pinimg.com/736x/a0/d3/72/a0d372d074f27290961b5bef860421c9.jpg", category: "Disventure Camp" },
+            { id: 'dc-maggie', name: "Maggie", imgSrc: "https://i.pinimg.com/736x/40/83/56/408356d6134bbf2c44d38884e7923d12.jpg", category: "Disventure Camp" },
+            { id: 'dc-kai', name: "Kai", imgSrc: "https://i.pinimg.com/736x/64/c5/fe/64c5fe8a82e4e60e0f6e35ee1892c62f.jpg", category: "Disventure Camp" },
+            { id: 'dc-connor', name: "Connor", imgSrc: "https://i.pinimg.com/736x/bb/cd/3e/bbcd3e351dfaf102d1c95e8ea7ea4e65.jpg", category: "Disventure Camp" },
+            { id: 'dc-yul', name: "Yul", imgSrc: "https://i.pinimg.com/736x/3a/97/d1/3a97d111513bfb269b51cfe1deb92fe8.jpg", category: "Disventure Camp" },
+            { id: 'dc-james', name: "James", imgSrc: "https://i.pinimg.com/736x/be/52/90/be529011c269a014ec538bf09c080229.jpg", category: "Disventure Camp" },
+            { id: 'dc-riya', name: "Riya", imgSrc: "https://i.pinimg.com/736x/6b/0d/2b/6b0d2b5985de38310822d6e3d9d05361.jpg", category: "Disventure Camp" },
+            { id: 'dc-aiden', name: "Aiden", imgSrc: "https://i.pinimg.com/736x/ca/f9/06/caf906d39baa1f2b76b6b42d332d416c.jpg", category: "Disventure Camp" },
+            { id: 'dc-hunter', name: "Hunter", imgSrc: "https://i.pinimg.com/736x/71/84/80/71848029232f2f0d9971d53dcce1f27f.jpg", category: "Disventure Camp" },
+            { id: 'dc-rosa', name: "Rosa Maria", imgSrc: "https://i.pinimg.com/736x/43/26/f6/4326f60c5e78b7f88d54fdb7baa60881.jpg", category: "Disventure Camp" },
+            { id: 'dc-ally', name: "Ally", imgSrc: "https://i.pinimg.com/736x/21/9e/d9/219ed9d51b7433d9501e58e3499ada8c.jpg", category: "Disventure Camp" },
+            { id: 'dc-tess', name: "Tess", imgSrc: "https://i.pinimg.com/736x/a8/bc/d7/a8bcd7d304bcc1f21420d449db14f079.jpg", category: "Disventure Camp" },
+            { id: 'dc-lake', name: "Lake", imgSrc: "https://i.pinimg.com/736x/c4/a9/67/c4a967b672b58b6675ecf9c90d7e03ce.jpg", category: "Disventure Camp" },
+            { id: 'dc-jade', name: "Jade", imgSrc: "https://i.pinimg.com/736x/54/28/5a/54285a3a6c2bdc1d45ca47a629ffaa36.jpg", category: "Disventure Camp" },
+            { id: 'dc-logan', name: "Logan", imgSrc: "https://i.pinimg.com/736x/b3/12/2f/b3122fbaf0df83a345d6f1917dfd7075.jpg", category: "Disventure Camp" },
+            { id: 'dc-tristan', name: "Tristan", imgSrc: "https://i.pinimg.com/736x/7d/49/22/7d4922b044bbca1090b8da0e271def89.jpg", category: "Disventure Camp" },
+            { id: 'dc-spencer', name: "Spencer", imgSrc: "https://i.pinimg.com/736x/62/7d/cb/627dcb127099283173adba220134fd01.jpg", category: "Disventure Camp" },
+            { id: 'dc-ivy', name: "Ivy", imgSrc: "https://i.pinimg.com/736x/32/b2/55/32b2554ef522071ebc84f5289bd4a9cd.jpg", category: "Disventure Camp" },
+            { id: 'dc-alessio', name: "Alessio", imgSrc: "https://i.pinimg.com/736x/32/56/04/3256042ae208a90088dd3d2ae05f2371.jpg", category: "Disventure Camp" },
+            { id: 'dc-zayd', name: "Zayd", imgSrc: "https://i.pinimg.com/736x/b1/97/c2/b197c2d05184d16bcbf49b9db86026e7.jpg", category: "Disventure Camp" },
+            { id: 'dc-anastasia', name: "Anastasia", imgSrc: "https://i.pinimg.com/736x/83/4a/d1/834ad1ebd81b8275c92f833997571741.jpg", category: "Disventure Camp" },
+            { id: 'dc-marissa', name: "Marissa", imgSrc: "https://i.pinimg.com/736x/e5/7a/30/e57a30f25c9ba6d7f463a8d46beecddb.jpg", category: "Disventure Camp" },
+            { id: 'dc-lynda', name: "Lynda", imgSrc: "https://i.pinimg.com/736x/0f/e1/c3/0fe1c30f4c631e9812f7a16b4ff6efaa.jpg", category: "Disventure Camp" },
+            { id: 'dc-amelie', name: "Amelie", imgSrc: "https://i.pinimg.com/736x/e8/80/6e/e8806e482d969c28b490de28761a3022.jpg", category: "Disventure Camp" },
+            { id: 'dc-richard', name: "Richard", imgSrc: "https://i.pinimg.com/736x/fd/b6/20/fdb6201b0a867cf8b8ff85a6e13f50d3.jpg", category: "Disventure Camp" },
+            { id: 'dc-natalia', name: "Natalia", imgSrc: "https://i.pinimg.com/736x/ea/78/1a/ea781a581a024db8f16d65de4c03cd26.jpg", category: "Disventure Camp" },
+            { id: 'dc-isabelle', name: "Isabelle", imgSrc: "https://i.pinimg.com/736x/5e/1a/f6/5e1af69ac6196b02e015133b3de84fd3.jpg", category: "Disventure Camp" },
+            { id: 'dc-ted', name: "Ted", imgSrc: "https://i.pinimg.com/736x/5c/f9/45/5cf945a3ea7f6799a3f09ee12f6a8b52.jpg", category: "Disventure Camp" },
+            { id: 'dc-hannah', name: "Hannah", imgSrc: "https://i.pinimg.com/736x/d1/77/6d/d1776deacf48592ad9b6defe673d77e6.jpg", category: "Disventure Camp" },
+            { id: 'dc-diego', name: "Diego", imgSrc: "https://i.pinimg.com/736x/2e/27/81/2e27818a4ba61155ea54a13c0f663707.jpg", category: "Disventure Camp" },
+            { id: 'dc-benji', name: "Benji", imgSrc: "https://i.pinimg.com/736x/5e/db/d7/5edbd7866b3ac409bb7dd77e3d36ec6f.jpg", category: "Disventure Camp" },
+            { id: 'dc-ara', name: "Ara", imgSrc: "https://i.pinimg.com/736x/c2/e3/e7/c2e3e7151442a283e74753d9659d95b3.jpg", category: "Disventure Camp" },
+            { id: 'dc-finn', name: "Finn", imgSrc: "https://i.pinimg.com/736x/10/cc/b0/10ccb06bb1d19a4ef49cd738cc55b4bf.jpg", category: "Disventure Camp" },
+            { id: 'dc-evie', name: "Evie", imgSrc: "https://i.pinimg.com/736x/55/06/c7/5506c794223c1b12c7a2e5cda5048aa3.jpg", category: "Disventure Camp" },
+            { id: 'dc-sam', name: "Sam", imgSrc: "https://i.pinimg.com/736x/15/2d/e8/152de89c9d5200795a44e9aad7c0a773.jpg", category: "Disventure Camp" },
+            { id: 'dc-aubrey', name: "Aubrey", imgSrc: "https://i.pinimg.com/736x/e9/d7/98/e9d798daf523915a37b9383ee2199781.jpg", category: "Disventure Camp" }
+        ];
+
+        function App() {
+            const [gameState, setGameState] = useState('CONFIG');
+            
+            // Configuration State
+            const [numPlayers, setNumPlayers] = useState(22);
+            const [useTeams, setUseTeams] = useState(true);
+            const [numTeams, setNumTeams] = useState(2);
+            const [immunityDuringMerge, setImmunityDuringMerge] = useState(true);
+            const [includeCauses, setIncludeCauses] = useState(true);
+            const [enableComebacks, setEnableComebacks] = useState(false);
+            const [manualSetup, setManualSetup] = useState(false);
+
+            // Manual Setup State
+            const [teamNames, setTeamNames] = useState(TEAM_DEFAULTS.map(t => t.name));
+            const [tempTeamAssignments, setTempTeamAssignments] = useState({});
+            const [movingPlayerId, setMovingPlayerId] = useState(null);
+
+            // Gameplay State
+            const [activePlayers, setActivePlayers] = useState([]);
+            const [eliminatedPlayers, setEliminatedPlayers] = useState([]);
+            const [episode, setEpisode] = useState(1);
+            const [isMerged, setIsMerged] = useState(false);
+            const [currentPhase, setCurrentPhase] = useState('ELIMINATION_SELECT');
+            const [losingTeamId, setLosingTeamId] = useState(null);
+            
+            // Selection State
+            const [selectedForElimination, setSelectedForElimination] = useState(null);
+            const [selectedCauses, setSelectedCauses] = useState([]);
+            const [immunePlayerId, setImmunePlayerId] = useState(null);
+            const [selectedReturneeId, setSelectedReturneeId] = useState(null);
+
+            // New Selection Phase State
+            const [selectedRosterIds, setSelectedRosterIds] = useState([]);
+
+            // --- HELPERS ---
+
+            const shuffleArray = (array) => {
+                return [...array].sort(() => Math.random() - 0.5);
+            };
+
+            const goToRosterSelection = () => {
+                setSelectedRosterIds([]);
+                setGameState('ROSTER_SELECT');
+            };
+
+            const toggleRosterSelection = (id) => {
+                if (selectedRosterIds.includes(id)) {
+                    setSelectedRosterIds(prev => prev.filter(pid => pid !== id));
+                } else {
+                    if (selectedRosterIds.length < numPlayers) {
+                        setSelectedRosterIds(prev => [...prev, id]);
+                    }
+                }
+            };
+
+            const getActiveTeamIds = (currentPlayers) => {
+                const teams = new Set();
+                currentPlayers.forEach(p => {
+                    if (p.teamId !== null) teams.add(p.teamId);
+                });
+                return Array.from(teams);
+            };
+
+            const startSeasonSetup = () => {
+                if (manualSetup && useTeams) {
+                    setTeamNames(TEAM_DEFAULTS.slice(0, numTeams).map(t => t.name));
+                    setTempTeamAssignments({});
+                    setGameState('TEAM_SETUP');
+                } else {
+                    finalizeGameStart();
+                }
+            };
+
+            const finalizeGameStart = () => {
+                const selectedChars = ROSTER_DATA.filter(c => selectedRosterIds.includes(c.id));
+                let roster = [];
+
+                if (manualSetup && useTeams) {
+                    roster = selectedChars.map(char => ({
+                        ...char,
+                        teamId: tempTeamAssignments[char.id] ?? 0,
+                        isImmune: false,
+                        challengeWins: 0,
+                    }));
+                } else {
+                    roster = shuffleArray(selectedChars);
+                    if (useTeams) {
+                        roster = roster.map((player, index) => ({
+                            ...player,
+                            teamId: index % numTeams,
+                            isImmune: false,
+                            challengeWins: 0,
+                        }));
+                    } else {
+                        roster = roster.map(p => ({ ...p, teamId: null, isImmune: false, challengeWins: 0 }));
+                    }
+                }
+
+                setActivePlayers(roster);
+                setEliminatedPlayers([]);
+                setEpisode(1);
+                
+                if (useTeams) {
+                    setIsMerged(false);
+                    if (manualSetup) {
+                        setLosingTeamId(null);
+                        setCurrentPhase('CHALLENGE_RESULT');
+                    } else {
+                        const activeTeamIds = getActiveTeamIds(roster);
+                        const initialLosingTeam = activeTeamIds.length > 0 ? activeTeamIds[Math.floor(Math.random() * activeTeamIds.length)] : null;
+                        setLosingTeamId(initialLosingTeam);
+                        setCurrentPhase('ELIMINATION_SELECT');
+                    }
+                } else {
+                    setIsMerged(true);
+                    setLosingTeamId(null);
+                    setCurrentPhase(immunityDuringMerge ? 'IMMUNITY_SELECT' : 'ELIMINATION_SELECT');
+                }
+
+                setGameState('PLAYING');
+                resetSelections();
+            };
+
+            const resetSelections = () => {
+                setSelectedForElimination(null);
+                setSelectedCauses([]);
+                setImmunePlayerId(null);
+                setSelectedReturneeId(null);
+            };
+
+            const handleMerge = () => {
+                setIsMerged(true);
+                setLosingTeamId(null);
+                setActivePlayers(prev => prev.map(p => ({ ...p, teamId: null })));
+                setCurrentPhase(immunityDuringMerge ? 'IMMUNITY_SELECT' : 'ELIMINATION_SELECT');
+            };
+
+            // --- MANUAL SETUP HANDLERS ---
+            const assignPlayerToTeam = (playerId, teamIndex) => {
+                setTempTeamAssignments(prev => ({ ...prev, [playerId]: teamIndex }));
+                setMovingPlayerId(null);
+            };
+
+            const unassignPlayer = (playerId) => {
+                const newAssigns = { ...tempTeamAssignments };
+                delete newAssigns[playerId];
+                setTempTeamAssignments(newAssigns);
+            };
+
+            // --- INTERACTION HANDLERS ---
+
+            const handlePlayerClick = (playerId) => {
+                const player = activePlayers.find(p => p.id === playerId);
+                if (!player) return;
+
+                if (currentPhase === 'IMMUNITY_SELECT') {
+                    if (immunePlayerId === playerId) setImmunePlayerId(null);
+                    else setImmunePlayerId(playerId);
+                } 
+                else if (currentPhase === 'ELIMINATION_SELECT') {
+                    if (player.isImmune || player.id === immunePlayerId) return;
+                    setSelectedForElimination(playerId);
+                } 
+                else if (currentPhase === 'CAUSE_SELECT') {
+                    if (selectedCauses.includes(playerId)) {
+                        setSelectedCauses(prev => prev.filter(id => id !== playerId));
+                    } else {
+                        if (selectedCauses.length < 3) {
+                            setSelectedCauses(prev => [...prev, playerId]);
+                        }
+                    }
+                }
+            };
+
+            const handleReturneeClick = (playerId) => {
+                if (selectedReturneeId === playerId) setSelectedReturneeId(null);
+                else setSelectedReturneeId(playerId);
+            };
+
+            const confirmPhase = () => {
+                if (currentPhase === 'IMMUNITY_SELECT') {
+                    if (immunePlayerId) {
+                        setActivePlayers(prev => prev.map(p => 
+                            p.id === immunePlayerId ? { ...p, challengeWins: (p.challengeWins || 0) + 1 } : p
+                        ));
+                    }
+                    setCurrentPhase('ELIMINATION_SELECT');
+                }
+                else if (currentPhase === 'ELIMINATION_SELECT') {
+                    if (!selectedForElimination) return;
+                    if (includeCauses) {
+                        setCurrentPhase('CAUSE_SELECT');
+                    } else {
+                        executeElimination();
+                    }
+                }
+                else if (currentPhase === 'CAUSE_SELECT') {
+                    if (!selectedForElimination) return; 
+                    executeElimination();
+                }
+                else if (currentPhase === 'RETURNEE_SELECT') {
+                    if (!selectedReturneeId) return;
+                    executeReturn();
+                }
+            };
+
+            const executeReturn = () => {
+                const returnee = eliminatedPlayers.find(p => p.id === selectedReturneeId);
+                if (!returnee) return;
+
+                const newEliminated = eliminatedPlayers.filter(p => p.id !== selectedReturneeId);
+                setEliminatedPlayers(newEliminated);
+
+                let newTeamId = returnee.teamId;
+                if (isMerged || !useTeams) {
+                    newTeamId = null;
+                }
+
+                const newPlayer = { ...returnee, teamId: newTeamId, isImmune: true, placement: undefined, eliminatedAt: undefined, eliminationCauses: undefined };
+                setActivePlayers(prev => [...prev, newPlayer]);
+                
+                setEpisode(prev => prev + 1);
+                
+                if (isMerged) {
+                    setLosingTeamId(null);
+                    setCurrentPhase(immunityDuringMerge ? 'IMMUNITY_SELECT' : 'ELIMINATION_SELECT');
+                } else {
+                    if (manualSetup) {
+                        setLosingTeamId(null);
+                        setCurrentPhase('CHALLENGE_RESULT');
+                    } else {
+                        const activeTeamIds = getActiveTeamIds([...activePlayers, newPlayer]);
+                        if (activeTeamIds.length > 0) {
+                            const nextLoser = activeTeamIds[Math.floor(Math.random() * activeTeamIds.length)];
+                            setLosingTeamId(nextLoser);
+                        }
+                        setCurrentPhase('ELIMINATION_SELECT');
+                    }
+                }
+                resetSelections();
+            };
+
+            const executeElimination = () => {
+                const victim = activePlayers.find(p => p.id === selectedForElimination);
+                if (!victim) return;
+
+                if (!isMerged && useTeams && losingTeamId !== null) {
+                    setActivePlayers(prev => prev.map(p => {
+                        if (p.teamId !== null && p.teamId !== losingTeamId) {
+                            return { ...p, challengeWins: (p.challengeWins || 0) + 1 };
+                        }
+                        return p;
+                    }));
+                }
+
+                const remaining = activePlayers.filter(p => p.id !== selectedForElimination);
+                const placement = remaining.length + 1;
+
+                const eliminated = {
+                    ...victim,
+                    placement: placement,
+                    eliminatedAt: episode,
+                    eliminationCauses: selectedCauses,
+                    isImmune: false
+                };
+
+                setEliminatedPlayers(prev => [eliminated, ...prev]);
+                setActivePlayers(remaining);
+
+                if (remaining.length === 1) {
+                    const winner = { ...remaining[0], placement: 1 };
+                    setEliminatedPlayers(prev => [winner, eliminated, ...prev.slice(1)]);
+                    setActivePlayers([]);
+                    setGameState('GAMEOVER');
+                } else {
+                    setEpisode(prev => prev + 1);
+                    setImmunePlayerId(null);
+                    setSelectedForElimination(null);
+                    setSelectedCauses([]);
+                    
+                    if (isMerged) {
+                        setLosingTeamId(null);
+                        setCurrentPhase(immunityDuringMerge ? 'IMMUNITY_SELECT' : 'ELIMINATION_SELECT');
+                    } else {
+                        if (manualSetup) {
+                            setLosingTeamId(null);
+                            setCurrentPhase('CHALLENGE_RESULT');
+                        } else {
+                            const activeTeamIds = getActiveTeamIds(remaining);
+                            if (activeTeamIds.length > 0) {
+                                const nextLoser = activeTeamIds[Math.floor(Math.random() * activeTeamIds.length)];
+                                setLosingTeamId(nextLoser);
+                            } else {
+                                setLosingTeamId(null);
+                            }
+                            setCurrentPhase('ELIMINATION_SELECT');
+                        }
+                    }
+                }
+            };
+
+            const eliminationCounts = useMemo(() => {
+                const counts = {};
+                eliminatedPlayers.forEach(p => {
+                    p.eliminationCauses?.forEach(causeId => {
+                        counts[causeId] = (counts[causeId] || 0) + 1;
+                    });
+                });
+                return counts;
+            }, [eliminatedPlayers]);
+
+            const sortedByKills = useMemo(() => {
+                const allIds = new Set();
+                eliminatedPlayers.forEach(p => { allIds.add(p.id); p.eliminationCauses?.forEach(c => allIds.add(c)); });
+                activePlayers.forEach(p => allIds.add(p.id));
+                const list = Array.from(allIds).map(id => {
+                    const player = [...activePlayers, ...eliminatedPlayers].find(p => p.id === id);
+                    return { ...player, kills: eliminationCounts[id] || 0 };
+                });
+                return list.sort((a, b) => b.kills - a.kills).filter(p => p.kills > 0);
+            }, [eliminatedPlayers, activePlayers, eliminationCounts]);
+
+            const sortedByWins = useMemo(() => {
+                return [...activePlayers, ...eliminatedPlayers]
+                    .filter(p => p && (p.challengeWins || 0) > 0)
+                    .sort((a, b) => (b.challengeWins || 0) - (a.challengeWins || 0));
+            }, [activePlayers, eliminatedPlayers]);
+
+            // --- COMPONENTS ---
+            const PlayerCard = ({ player, status }) => {
+                let borderColor = 'border-gray-200';
+                let bgColor = 'bg-white';
+                
+                if (status === 'eliminated') {
+                    borderColor = 'border-red-200';
+                    bgColor = 'bg-gray-100 opacity-60 grayscale';
+                }
+
+                const isImmune = player.id === immunePlayerId;
+                const isSelected = selectedForElimination === player.id || selectedReturneeId === player.id;
+                const isCause = selectedCauses.includes(player.id);
+
+                return (
+                    <div 
+                        onClick={() => {
+                            if (status === 'active') handlePlayerClick(player.id);
+                            if (status === 'eliminated' && currentPhase === 'RETURNEE_SELECT') handleReturneeClick(player.id);
+                        }}
+                        className={`
+                            relative flex flex-col items-center p-1.5 rounded-lg border-2 shadow-sm transition-all duration-200 cursor-pointer
+                            ${borderColor} ${bgColor}
+                            ${(status === 'active' || (status === 'eliminated' && currentPhase === 'RETURNEE_SELECT')) ? 'hover:scale-105 active:scale-95' : ''}
+                            ${isSelected ? (currentPhase === 'RETURNEE_SELECT' ? 'ring-4 ring-green-500 scale-110 z-10' : 'ring-4 ring-red-600 scale-110 z-10') : ''}
+                            ${isCause ? 'ring-4 ring-orange-500 scale-105' : ''}
+                            ${isImmune ? 'ring-4 ring-yellow-400' : ''}
+                        `}
+                    >
+                        {isImmune && <div className="absolute -top-2 -right-2 bg-yellow-400 text-white p-0.5 rounded-full shadow-md z-20"><Shield size={16} fill="white"/></div>}
+                        {isSelected && currentPhase !== 'RETURNEE_SELECT' && <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-red-600 font-black text-5xl opacity-80 z-20">X</div>}
+                        {isSelected && currentPhase === 'RETURNEE_SELECT' && <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-green-600 font-black text-5xl opacity-80 z-20"><Undo2 size={40} /></div>}
+                        {isCause && <div className="absolute -top-2 -left-2 bg-orange-500 text-white p-0.5 rounded-full shadow-md z-20"><Sword size={14} /></div>}
+
+                        <div className="w-16 h-16 md:w-20 md:h-20 overflow-hidden rounded-md bg-gray-100 mb-1 border border-black/10">
+                            <img 
+                                src={player.imgSrc} 
+                                alt={player.name} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => { e.target.src = 'https://via.placeholder.com/150?text=?'; }}
+                            />
+                        </div>
+                        <div className="text-center font-bold text-xs md:text-sm truncate w-full px-0.5 text-gray-800 leading-tight">
+                            {player.name}
+                        </div>
+                    </div>
+                );
+            };
+
+            const isTeamPhase = useTeams && !isMerged;
+            const playerGroups = useMemo(() => {
+                if (isTeamPhase) {
+                    const groups = [];
+                    for (let i = 0; i < numTeams; i++) {
+                        const teamPlayers = activePlayers.filter(p => p.teamId === i);
+                        if (teamPlayers.length >= 0) {
+                            groups.push({
+                                ...TEAM_DEFAULTS[i],
+                                name: manualSetup ? teamNames[i] : TEAM_DEFAULTS[i].name,
+                                players: teamPlayers,
+                                id: i
+                            });
+                        }
+                    }
+                    return groups;
+                } else {
+                    return [{
+                        name: 'MERGE TRIBE',
+                        bg: 'bg-yellow-50',
+                        border: 'border-black',
+                        headerBg: 'bg-black',
+                        text: 'text-black',
+                        players: activePlayers,
+                        id: 99
+                    }];
+                }
+            }, [activePlayers, isTeamPhase, numTeams, manualSetup, teamNames]);
+
+            if (gameState === 'CONFIG') {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-4 font-sans">
+                        <div className="bg-white p-8 rounded-3xl shadow-2xl border-8 border-yellow-400 max-w-lg w-full">
+                            <h1 className="text-4xl font-black text-center mb-6 text-gray-800 uppercase tracking-tighter">
+                                <span className="text-yellow-500 drop-shadow-md">Drama</span> Simulator
+                            </h1>
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="flex items-center justify-between font-bold text-gray-700 mb-2">
+                                        <span><Users className="inline mr-2"/> Numero Partecipanti: {numPlayers}</span>
+                                    </label>
+                                    <input type="range" min="4" max="80" value={numPlayers} onChange={(e) => setNumPlayers(Number(e.target.value))} className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"/>
+                                </div>
+                                <div className="flex items-center justify-between p-4 bg-gray-100 rounded-xl border-2 border-gray-200">
+                                    <span className="font-bold text-gray-700">Abilita Squadre</span>
+                                    <button onClick={() => setUseTeams(!useTeams)} className={`w-14 h-8 flex items-center rounded-full p-1 transition-colors ${useTeams ? 'bg-indigo-500' : 'bg-gray-300'}`}><div className={`bg-white w-6 h-6 rounded-full shadow-md transform transition-transform ${useTeams ? 'translate-x-6' : ''}`} /></button>
+                                </div>
+                                {useTeams && (
+                                    <div className="pl-4 border-l-4 border-indigo-200 space-y-4">
+                                        <div>
+                                            <label className="flex items-center justify-between font-bold text-gray-600 mb-2">
+                                                <span>Numero Squadre: {numTeams}</span>
+                                            </label>
+                                            <input type="range" min="2" max="10" value={numTeams} onChange={(e) => setNumTeams(Number(e.target.value))} className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-pink-500"/>
+                                        </div>
+                                        <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                                            <span className="font-bold text-indigo-900 text-sm flex flex-col">
+                                                <span>Modalità Regista (Manuale)</span>
+                                                <span className="text-[10px] font-normal opacity-70">Nomi team, assegnazioni e risultati sfide</span>
+                                            </span>
+                                            <button onClick={() => setManualSetup(!manualSetup)} className={`w-10 h-6 flex items-center rounded-full p-1 transition-colors ${manualSetup ? 'bg-indigo-600' : 'bg-gray-300'}`}><div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${manualSetup ? 'translate-x-4' : ''}`} /></button>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="flex items-center justify-between p-4 bg-gray-100 rounded-xl border-2 border-gray-200">
+                                    <span className="font-bold text-gray-700">Immunità al Merge</span>
+                                    <button onClick={() => setImmunityDuringMerge(!immunityDuringMerge)} className={`w-14 h-8 flex items-center rounded-full p-1 transition-colors ${immunityDuringMerge ? 'bg-indigo-500' : 'bg-gray-300'}`}><div className={`bg-white w-6 h-6 rounded-full shadow-md transform transition-transform ${immunityDuringMerge ? 'translate-x-6' : ''}`} /></button>
+                                </div>
+                                <div className="flex items-center justify-between p-4 bg-gray-100 rounded-xl border-2 border-gray-200">
+                                    <span className="font-bold text-gray-700 flex flex-col">
+                                        <span>Includi Cause Eliminazione</span>
+                                        <span className="text-xs font-normal text-gray-500">Seleziona chi ha causato l'uscita</span>
+                                    </span>
+                                    <button onClick={() => setIncludeCauses(!includeCauses)} className={`w-14 h-8 flex items-center rounded-full p-1 transition-colors ${includeCauses ? 'bg-indigo-500' : 'bg-gray-300'}`}><div className={`bg-white w-6 h-6 rounded-full shadow-md transform transition-transform ${includeCauses ? 'translate-x-6' : ''}`} /></button>
+                                </div>
+                                <div className="flex items-center justify-between p-4 bg-gray-100 rounded-xl border-2 border-gray-200">
+                                    <span className="font-bold text-gray-700 flex flex-col">
+                                        <span>Abilita Ritorni Manuali</span>
+                                        <span className="text-xs font-normal text-gray-500">Pulsante per far rientrare eliminati</span>
+                                    </span>
+                                    <button onClick={() => setEnableComebacks(!enableComebacks)} className={`w-14 h-8 flex items-center rounded-full p-1 transition-colors ${enableComebacks ? 'bg-indigo-500' : 'bg-gray-300'}`}><div className={`bg-white w-6 h-6 rounded-full shadow-md transform transition-transform ${enableComebacks ? 'translate-x-6' : ''}`} /></button>
+                                </div>
+                                <button onClick={goToRosterSelection} className="w-full bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xl py-4 rounded-xl shadow-[0_6px_0_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-1 transition-all flex items-center justify-center gap-3 uppercase"><Play fill="black" /> Scegli Partecipanti</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (gameState === 'ROSTER_SELECT') {
+                const tdCharacters = ROSTER_DATA.filter(c => c.category === 'Total Drama');
+                const dcCharacters = ROSTER_DATA.filter(c => c.category === 'Disventure Camp');
+                const canStart = selectedRosterIds.length === numPlayers;
+
+                const RosterItem = ({ char }) => {
+                    const isSelected = selectedRosterIds.includes(char.id);
+                    const isFull = selectedRosterIds.length >= numPlayers && !isSelected;
+                    return (
+                        <div onClick={() => !isFull && toggleRosterSelection(char.id)} className={`cursor-pointer rounded-lg p-1 flex flex-col items-center border-2 transition-all relative ${isSelected ? 'border-green-500 bg-green-50 scale-105' : 'border-gray-200 bg-white hover:border-gray-400'} ${isFull ? 'opacity-40 cursor-not-allowed grayscale' : ''}`}>
+                            <div className="w-12 h-12 rounded-md overflow-hidden bg-gray-100 mb-1"><img src={char.imgSrc} alt={char.name} className="w-full h-full object-cover"/></div>
+                            <div className="text-[10px] font-bold text-center leading-tight truncate w-full">{char.name}</div>
+                            {isSelected && <div className="absolute -top-1 -right-1 bg-green-500 text-white rounded-full p-0.5"><CheckCircle size={12} /></div>}
+                        </div>
+                    );
+                };
+
+                return (
+                    <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
+                        <header className="bg-white border-b-4 border-gray-200 p-4 sticky top-0 z-30 shadow-sm">
+                            <div className="max-w-5xl mx-auto flex justify-between items-center">
+                                <div>
+                                    <h2 className="text-xl font-black text-gray-800">SELEZIONE CAST</h2>
+                                    <div className={`text-sm font-bold ${selectedRosterIds.length === numPlayers ? 'text-green-600' : 'text-orange-500'}`}>Selezionati: {selectedRosterIds.length} / {numPlayers}</div>
+                                </div>
+                                <button onClick={startSeasonSetup} disabled={!canStart} className={`px-6 py-2 rounded-xl font-black text-white shadow-md transition-all uppercase ${canStart ? 'bg-green-500 hover:bg-green-400 active:translate-y-1' : 'bg-gray-300 cursor-not-allowed'}`}>{manualSetup && useTeams ? 'Configura Squadre' : 'Inizia Partita'}</button>
+                            </div>
+                        </header>
+                        <div className="flex-1 overflow-y-auto p-4">
+                            <div className="max-w-5xl mx-auto space-y-8">
+                                <div className="bg-white p-4 rounded-xl shadow-md border-l-8 border-yellow-400"><h3 className="text-lg font-black text-gray-700 mb-4 border-b pb-2">TOTAL DRAMA</h3><div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">{tdCharacters.map(char => <RosterItem key={char.id} char={char} />)}</div></div>
+                                <div className="bg-white p-4 rounded-xl shadow-md border-l-8 border-cyan-400"><h3 className="text-lg font-black text-gray-700 mb-4 border-b pb-2">DISVENTURE CAMP</h3><div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">{dcCharacters.map(char => <RosterItem key={char.id} char={char} />)}</div></div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (gameState === 'TEAM_SETUP') {
+                const unassignedIds = selectedRosterIds.filter(id => tempTeamAssignments[id] === undefined);
+                const canStartSeason = unassignedIds.length === 0;
+
+                return (
+                    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+                        <header className="bg-white border-b-4 border-gray-200 p-4 sticky top-0 z-30 shadow-sm flex justify-between items-center">
+                            <h2 className="text-2xl font-black text-gray-800 flex items-center gap-2"><Settings className="text-indigo-600"/> SETUP SQUADRE</h2>
+                            <button onClick={finalizeGameStart} disabled={!canStartSeason} className={`px-8 py-3 rounded-xl font-black text-white shadow-lg uppercase tracking-wide ${canStartSeason ? 'bg-green-500 hover:bg-green-400' : 'bg-gray-300 cursor-not-allowed'}`}>Inizia Stagione</button>
+                        </header>
+                        <main className="flex-1 p-6 overflow-hidden flex flex-col gap-6">
+                            <div className="bg-white p-4 rounded-xl shadow-inner border-2 border-dashed border-gray-300 min-h-[120px]">
+                                <h3 className="text-gray-400 font-bold text-sm uppercase mb-2">Giocatori da Assegnare ({unassignedIds.length})</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {unassignedIds.map(id => {
+                                        const char = ROSTER_DATA.find(c => c.id === id);
+                                        if (!char) return null;
+                                        return <div key={id} onClick={() => setMovingPlayerId(movingPlayerId === id ? null : id)} className={`w-12 h-12 rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${movingPlayerId === id ? 'ring-4 ring-indigo-500 scale-110 z-10 border-indigo-500' : 'border-gray-200 hover:border-gray-400'}`}><img src={char.imgSrc} className="w-full h-full object-cover" alt={char.name}/></div>;
+                                    })}
+                                    {unassignedIds.length === 0 && <span className="text-green-500 font-bold flex items-center"><CheckCircle size={16} className="mr-1"/> Tutti assegnati!</span>}
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pb-20">
+                                {TEAM_DEFAULTS.slice(0, numTeams).map((def, idx) => (
+                                    <div key={idx} onClick={() => movingPlayerId && assignPlayerToTeam(movingPlayerId, idx)} className={`rounded-xl border-4 bg-white flex flex-col overflow-hidden shadow-lg transition-all ${def.border} ${movingPlayerId ? 'hover:bg-indigo-50 cursor-pointer ring-2 ring-indigo-300' : ''}`}>
+                                        <div className={`${def.headerBg} p-2`}><input type="text" value={teamNames[idx]} onChange={(e) => {const newNames = [...teamNames]; newNames[idx] = e.target.value; setTeamNames(newNames);}} className="w-full bg-transparent text-white font-black text-center uppercase placeholder-white/50 focus:outline-none border-b border-white/20 pb-1" placeholder="Nome Team"/></div>
+                                        <div className={`p-4 ${def.bg} flex-1 min-h-[200px] flex flex-wrap content-start gap-2`}>
+                                            {selectedRosterIds.filter(id => tempTeamAssignments[id] === idx).map(id => {
+                                                const char = ROSTER_DATA.find(c => c.id === id);
+                                                if (!char) return null;
+                                                return <div key={id} onClick={(e) => {e.stopPropagation(); unassignPlayer(id);}} className="w-14 h-14 rounded-lg overflow-hidden border-2 border-white shadow-sm cursor-pointer hover:scale-105 hover:ring-2 hover:ring-red-400 transition-all relative group" title="Clicca per rimuovere"><img src={char.imgSrc} className="w-full h-full object-cover" alt={char.name}/><div className="absolute inset-0 bg-red-500/50 hidden group-hover:flex items-center justify-center text-white font-bold text-xs">Rimuovi</div></div>;
+                                            })}
+                                            {movingPlayerId && <div className="w-14 h-14 rounded-lg border-2 border-dashed border-indigo-400 bg-indigo-100 flex items-center justify-center text-indigo-400 opacity-50 animate-pulse text-xs text-center p-1">Clicca qui</div>}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </main>
+                    </div>
+                );
+            }
+
+            if (gameState === 'PLAYING') {
+                return (
+                    <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
+                        <header className="bg-white border-b-4 border-gray-200 p-4 shadow-sm sticky top-0 z-30">
+                            <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="bg-indigo-600 text-white font-black px-4 py-2 rounded-lg text-xl shadow-lg transform -rotate-2">EPISODIO {episode}</div>
+                                    <div className="text-gray-500 font-bold text-sm uppercase tracking-wide">{activePlayers.length} In Gara | {eliminatedPlayers.length} Eliminati</div>
+                                    {enableComebacks && eliminatedPlayers.length > 0 && currentPhase !== 'RETURNEE_SELECT' && (
+                                        <button onClick={() => { setCurrentPhase('RETURNEE_SELECT'); resetSelections(); }} className="bg-cyan-600 text-white font-bold px-4 py-2 rounded-lg shadow-md hover:bg-cyan-500 transition uppercase text-sm flex items-center gap-2"><Undo2 size={16} /> Rientro</button>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {isTeamPhase && currentPhase !== 'RETURNEE_SELECT' && currentPhase !== 'CHALLENGE_RESULT' && (
+                                        <button onClick={handleMerge} className="bg-purple-600 text-white font-bold px-4 py-2 rounded-lg shadow-md hover:bg-purple-500 transition uppercase text-sm">Unisci Squadre (Merge)</button>
+                                    )}
+                                    <div className="bg-gray-800 text-white px-6 py-2 rounded-full font-bold shadow-inner flex items-center gap-2">
+                                        {currentPhase === 'IMMUNITY_SELECT' && <><Shield size={18} className="text-yellow-400"/> Scegli Immune</>}
+                                        {currentPhase === 'ELIMINATION_SELECT' && <><Skull size={18} className="text-red-400"/> Scegli Eliminato</>}
+                                        {currentPhase === 'CAUSE_SELECT' && <><Users size={18} className="text-orange-400"/> Chi è la causa? ({selectedCauses.length}/3)</>}
+                                        {currentPhase === 'RETURNEE_SELECT' && <><Undo2 size={18} className="text-green-400"/> Scegli Chi Torna</>}
+                                        {currentPhase === 'CHALLENGE_RESULT' && <><Trophy size={18} className="text-yellow-400"/> Risultati Sfida</>}
+                                    </div>
+                                    {currentPhase === 'CHALLENGE_RESULT' && (
+                                        <button onClick={() => { const activeTeamIds = getActiveTeamIds(activePlayers); const randomLoser = activeTeamIds[Math.floor(Math.random() * activeTeamIds.length)]; setLosingTeamId(randomLoser); setCurrentPhase('ELIMINATION_SELECT'); }} className="bg-gray-500 text-white font-bold px-6 py-2 rounded-xl shadow-md hover:bg-gray-600 uppercase">Simula</button>
+                                    )}
+                                    {currentPhase !== 'CHALLENGE_RESULT' && (
+                                        <button onClick={confirmPhase} disabled={(currentPhase === 'ELIMINATION_SELECT' && !selectedForElimination) || (currentPhase === 'CAUSE_SELECT' && selectedCauses.length === 0) || (currentPhase === 'RETURNEE_SELECT' && !selectedReturneeId)} className="bg-green-500 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-black px-6 py-2 rounded-xl shadow-[0_4px_0_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-1 transition uppercase">{currentPhase === 'CAUSE_SELECT' ? 'Conferma' : currentPhase === 'RETURNEE_SELECT' ? 'Riporta in Gara' : (currentPhase === 'ELIMINATION_SELECT' && !includeCauses ? 'Elimina' : 'Avanti')}</button>
+                                    )}
+                                </div>
+                            </div>
+                        </header>
+                        <main className="flex-1 p-6 overflow-y-auto">
+                            <div className="max-w-7xl mx-auto">
+                                <div className="text-center mb-8">
+                                    <h2 className="text-3xl font-black text-gray-800 mb-2">
+                                        {currentPhase === 'IMMUNITY_SELECT' && "Chi vince l'immunità?"}
+                                        {currentPhase === 'ELIMINATION_SELECT' && (losingTeamId !== null && isTeamPhase ? `I ${manualSetup ? teamNames[losingTeamId] : TEAM_DEFAULTS[losingTeamId].name} hanno perso!` : "Chi lascia lo show stasera?")}
+                                        {currentPhase === 'CAUSE_SELECT' && "Chi ha causato questa eliminazione? (Seleziona fino a 3)"}
+                                        {currentPhase === 'RETURNEE_SELECT' && "COLPO DI SCENA! Un concorrente torna in gara."}
+                                        {currentPhase === 'CHALLENGE_RESULT' && "CHI HA PERSO LA SFIDA?"}
+                                    </h2>
+                                    <p className="text-gray-500 font-medium">
+                                        {currentPhase === 'IMMUNITY_SELECT' && "Clicca su un giocatore per proteggerlo dall'eliminazione. Ottiene +1 vittoria."}
+                                        {currentPhase === 'ELIMINATION_SELECT' && "Clicca sul giocatore da eliminare."}
+                                        {currentPhase === 'CAUSE_SELECT' && "Clicca sui colpevoli."}
+                                        {currentPhase === 'RETURNEE_SELECT' && "Seleziona uno degli eliminati."}
+                                        {currentPhase === 'CHALLENGE_RESULT' && "Clicca sul nome della squadra che ha perso la sfida."}
+                                    </p>
+                                </div>
+                                {currentPhase === 'RETURNEE_SELECT' ? (
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 bg-gray-200 p-6 rounded-2xl border-4 border-green-400">{eliminatedPlayers.map(player => <PlayerCard key={player.id} player={player} status="eliminated" />)}</div>
+                                ) : (
+                                    <div className={`grid grid-cols-1 ${isTeamPhase ? 'md:grid-cols-2' : 'md:grid-cols-1'} gap-8`}>
+                                        {playerGroups.map((group) => {
+                                            const isLosingTeam = group.id === losingTeamId && isTeamPhase;
+                                            const canClickToLose = currentPhase === 'CHALLENGE_RESULT' && group.players.length > 0;
+                                            return (
+                                                <div key={group.id} className={`rounded-xl border-4 overflow-hidden bg-white shadow-xl flex flex-col transition-all duration-300 ${isLosingTeam ? 'border-red-500 ring-4 ring-red-300 scale-[1.02]' : group.border}`}>
+                                                    <div onClick={() => { if (canClickToLose) { setLosingTeamId(group.id); setCurrentPhase('ELIMINATION_SELECT'); } }} className={`p-3 font-black text-center text-white uppercase tracking-widest text-xl relative ${group.headerBg} ${canClickToLose ? 'cursor-pointer hover:brightness-110 hover:scale-105 transition-transform' : ''}`}>
+                                                        {group.name} <span className="text-sm opacity-80">({group.players.length})</span>
+                                                        {isLosingTeam && <div className="absolute top-1/2 right-4 transform -translate-y-1/2 flex items-center gap-1 bg-white text-red-600 px-2 py-1 rounded-full text-xs font-bold shadow-md animate-pulse"><Flame size={14} fill="currentColor"/> AL VOTO</div>}
+                                                        {canClickToLose && <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity">Scegli come Perdente</div>}
+                                                    </div>
+                                                    <div className={`p-6 ${group.bg} flex-1 min-h-[150px]`}>
+                                                        {group.players.length === 0 ? <div className="flex h-full items-center justify-center text-gray-400 font-bold italic opacity-50">Squadra Eliminata</div> : <div className="flex flex-wrap justify-center gap-3">{group.players.map(player => <PlayerCard key={player.id} player={player} status="active" />)}</div>}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                {eliminatedPlayers.length > 0 && currentPhase !== 'RETURNEE_SELECT' && (
+                                    <div className="mt-12 border-t-2 border-dashed border-gray-300 pt-6"><h3 className="text-gray-400 font-bold uppercase text-center mb-4">Eliminati Recenti</h3><div className="flex flex-wrap justify-center gap-2 opacity-60 grayscale hover:grayscale-0 transition-all">{eliminatedPlayers.slice(0, 10).map(p => <div key={p.id} className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-400"><img src={p.imgSrc} alt={p.name} className="w-full h-full object-cover"/></div>)}</div></div>
+                                )}
+                            </div>
+                        </main>
+                    </div>
+                );
+            }
+
+            if (gameState === 'GAMEOVER') {
+                const winner = eliminatedPlayers.find(p => p.placement === 1);
+                return (
+                    <div className="min-h-screen bg-slate-900 text-white flex flex-col font-sans overflow-hidden">
+                        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+                            <div className="max-w-6xl mx-auto">
+                                <div className="text-center mb-12 animate-fade-in-down"><Crown className="w-20 h-20 text-yellow-400 mx-auto mb-4 animate-bounce"/><h1 className="text-6xl md:text-8xl font-black text-yellow-400 tracking-tighter drop-shadow-lg mb-2">VINCITORE</h1><div className="relative inline-block mt-4"><div className="w-48 h-48 md:w-64 md:h-64 rounded-full border-8 border-yellow-400 overflow-hidden shadow-[0_0_50px_rgba(250,204,21,0.6)] bg-white mx-auto"><img src={winner?.imgSrc} alt="Winner" className="w-full h-full object-cover"/></div><div className="mt-4 text-4xl font-bold">{winner?.name}</div></div></div>
+                                <div className="grid md:grid-cols-3 gap-6">
+                                    <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl"><h2 className="text-xl font-black text-white mb-4 flex items-center gap-2 border-b border-slate-600 pb-2"><Trophy className="text-yellow-400"/> CLASSIFICA FINALE</h2><div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar pr-2">{eliminatedPlayers.sort((a, b) => (a.placement || 0) - (b.placement || 0)).map((p) => <div key={p.id} className="flex items-center justify-between bg-slate-700 p-2 rounded-lg hover:bg-slate-600 transition"><div className="flex items-center gap-3"><span className={`font-black text-md w-6 ${p.placement === 1 ? 'text-yellow-400' : 'text-gray-400'}`}>#{p.placement}</span><img src={p.imgSrc} className="w-8 h-8 rounded-full object-cover bg-gray-500" /><span className="font-bold text-sm truncate max-w-[120px]">{p.name}</span></div></div>)}</div></div>
+                                    <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl"><h2 className="text-xl font-black text-white mb-4 flex items-center gap-2 border-b border-slate-600 pb-2"><Sword className="text-red-400"/> KILL LEADER</h2>{includeCauses ? <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar pr-2">{sortedByKills.map((p, idx) => <div key={p.id} className="flex items-center justify-between bg-slate-700 p-2 rounded-lg"><div className="flex items-center gap-3"><span className="font-mono text-gray-500 font-bold text-sm">#{idx + 1}</span><img src={p.imgSrc || ''} className="w-8 h-8 rounded-full object-cover bg-gray-500" /><span className="font-bold text-sm truncate max-w-[100px]">{p.name || 'Unknown'}</span></div><div className="bg-red-900 text-red-100 font-bold px-2 py-0.5 rounded-full text-xs">{p.kills}</div></div>)}{sortedByKills.length === 0 && <p className="text-gray-500 italic text-sm">Nessun dato.</p>}</div> : <div className="flex flex-col items-center justify-center h-40 opacity-50"><AlertCircle className="mb-2"/><p className="text-xs">Disabilitato</p></div>}</div>
+                                    <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl"><h2 className="text-xl font-black text-white mb-4 flex items-center gap-2 border-b border-slate-600 pb-2"><Star className="text-blue-400"/> CHALLENGE BEASTS</h2><div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar pr-2">{sortedByWins.map((p, idx) => <div key={p.id} className="flex items-center justify-between bg-slate-700 p-2 rounded-lg"><div className="flex items-center gap-3"><span className="font-mono text-gray-500 font-bold text-sm">#{idx + 1}</span><img src={p.imgSrc || ''} className="w-8 h-8 rounded-full object-cover bg-gray-500" /><span className="font-bold text-sm truncate max-w-[100px]">{p.name}</span></div><div className="bg-blue-900 text-blue-100 font-bold px-2 py-0.5 rounded-full text-xs">{p.challengeWins} Wins</div></div>)}</div></div>
+                                </div>
+                                <div className="mt-12 text-center pb-8"><button onClick={() => setGameState('CONFIG')} className="bg-white text-slate-900 font-black px-8 py-4 rounded-xl text-xl hover:scale-105 transition flex items-center gap-2 mx-auto"><RefreshCw /> NUOVA PARTITA</button></div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+            return null;
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
